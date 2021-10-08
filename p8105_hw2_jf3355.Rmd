@@ -24,7 +24,7 @@ Mr_Trash_Wheel_Data <-
   read_excel("Trash-Wheel-Collection-Totals-8-6-19.xlsx", range = "A2:N408") %>%
   janitor::clean_names() %>%
   drop_na(dumpster) %>%
-  mutate(sports_balls = round(sports_balls))
+  mutate(sports_balls = as.integer(round(sports_balls)))
 ```
 
 
