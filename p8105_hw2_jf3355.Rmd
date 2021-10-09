@@ -23,7 +23,7 @@ round the number of sports balls to the nearest integer
 ```{r}
 Mr_Trash_Wheel_Data <- 
   read_excel("Trash-Wheel-Collection-Totals-7-2020-2.xlsx", 
-             range = "A2:N408") %>%
+             range = "A2:N535") %>%
   janitor::clean_names() %>%
   drop_na(dumpster) %>%
   mutate(sports_balls = as.integer(round(sports_balls)))
@@ -53,6 +53,11 @@ Precipitation_2019 <-
   mutate(month = month.name[month])
 Precipitation_2019
 ```
+```{r}
+new_2018_2019 <-
+  bind_rows(Precipitation_2018, Precipitation_2019)%>%
+  janitor::clean_names()
+```
 
 
 Write a paragraph about these data; you are encouraged to use inline R. Be sure to note the number of observations in both resulting datasets, and give examples of key variables. For available data, what was the total precipitation in 2018? What was the median number of sports balls in a dumpster in 2019?
@@ -70,16 +75,48 @@ This problem uses the FiveThirtyEight data; these data were gathered to create t
 First, clean the data in pols-month.csv. Use separate() to break up the variable mon into integer variables year, month, and day; replace month number with month name; create a president variable taking values gop and dem, and remove prez_dem and prez_gop; and remove the day variable.
 
 ```{r}
-pols_month_new = read_csv("pols-month.csv") %>%
+pols_month_new <- 
+  read_csv("pols-month.csv") %>%
   janitor::clean_names() %>%
-  mutate(year= as.numeric(year)) %>%
-  mutate(month.name[])
+  separate(mon,into = c("year","month","day"))%>%
+  mutate(year= as.numeric(year), day= as.numeric(day))%>%
+  mutate(month = month.abb[as.numeric(month)])%>%
+  mutate(president = case_when(
+    prez_gop >=1 ~ "gop",
+    prez_dem ==1 ~ "dem"))%>%
+  select(-prez_dem, -prez_gop,-day)
+  
+pols_month_new  
 ```
 
 
 Second, clean the data in snp.csv using a similar process to the above. For consistency across datasets, arrange according to year and month, and organize so that year and month are the leading columns.
 
+```{r}
+snp_new <-
+  read_csv("snp.csv")%>%
+  janitor::clean_names()%>%
+  mutate(date= lubridate::mdy(date))%>%
+  separate(date,into = c("year","month","day"))%>%
+  mutate(year = as.numeric(year),
+         month = as.numeric(month))%>%
+  mutate(year= ifelse(year > 2015, year-100, year))%>%
+  arrange(year,month)%>%
+  mutate(month = month.name[as.numeric(month)])%>%
+  relocate(year,month,day,close)
+snp_new  
+  
+  
+```
+
+
 Third, tidy the unemployment data so that it can be merged with the previous datasets. This process will involve switching from “wide” to “long” format; ensuring that key variables have the same name; and ensuring that key variables take the same values.
+```{r}
+new_unemployment <-
+  read_csv("unemployment.csv")%>%
+  janitor::clean_names()%>%
+```
+
 
 Join the datasets by merging snp into pols, and merging unemployment into the result.
 
@@ -87,4 +124,52 @@ Write a short paragraph about these datasets. Explain briefly what each dataset 
 
 Note: we could have used a date variable as a key instead of creating year and month keys; doing so would help with some kinds of plotting, and be a more accurate representation of the data. Date formats are tricky, though. For more information check out the lubridate package in the tidyverse.
 
+
+
+Problem 3
+
+This problem uses data from NYC Open data on the popularity of baby names, and can be downloaded here.
+
+Load and tidy the data. Note that, although these data may seem fairly well formatted initially, the names of a categorical predictor and the case structure of string variables changed over time; you’ll need to address this in your data cleaning. Also, some rows seem duplicated, and these will need to be removed (hint: google something like “dplyr remove duplicate rows” to get started).
+
+```{r}
+new_popularity <-
+  read_csv("Popular_Baby_Names.csv")%>%
+  janitor::clean_names()%>%
+  mutate(ethnicity = recode(ethnicity, 
+                            "ASIAN AND PACI" = "ASIAN AND PACIFIC ISLANDER",
+                            "BLACK NON HISP" = "BLACK NON HISPANIC", 
+                            "WHITE NON HISP" = "WHITE NON HISPANIC")) %>% 
+  distinct()
+new_popularity
+  
+```
+
+Produce a well-structured, reader-friendly table showing the rank in popularity of the name “Olivia” as a female baby name over time; this should have rows for ethnicities and columns for year. Produce a similar table showing the most popular name among male children over time.
+```{r}
+rank_popularity <-
+  filter(new_popularity,childs_first_name == "Olivia", gender == "FEMALE") %>%
+  select(year_of_birth,ethnicity,rank)
+rank_popularity  
+```
+```{r}
+popular_name_male <-
+  filter(new_popularity,gender == "MALE", rank == "1") %>%
+  select(-gender,-count,-rank)
+popular_name_male
+```
+
+
+Finally, for male, white non-hispanic children born in 2016, produce a scatter plot showing the number of children with a name (y axis) against the rank in popularity of that name (x axis).
+
+
+```{r}
+new_plot <-
+  select(new_popularity, year_of_birth,gender,ethnicity,childs_first_name,
+         count, rank)%>%
+  filter(year_of_birth == "2016", gender == "MALE", 
+         ethnicity == "WHITE NON HISPANIC")
+new_plot
+ggplot(new_plot, aes(x= rank, y=count))+geom_point()
+```
 
