@@ -27,8 +27,6 @@ Mr_Trash_Wheel_Data <-
   janitor::clean_names() %>%
   drop_na(dumpster) %>%
   mutate(sports_balls = as.integer(round(sports_balls)))
-
-Mr_Trash_Wheel_Data
 ```
 
 Read and clean precipitation data for 2018 and 2019. For each, omit rows without precipitation data and add a variable for year. Next, combine precipitation datasets and convert month to a character variable (the variable month.name is built into R and should be useful).
@@ -40,8 +38,8 @@ Precipitation_2018 <-
   janitor::clean_names() %>%
   drop_na(total) %>%
   add_column(Year = "2018") %>%
-  mutate(month = month.name[month])
-Precipitation_2018
+  mutate(month = month.name[month]) %>% 
+  rename(total_precipitation = total)
 ```
 ```{r}
 Precipitation_2019 <- 
@@ -50,8 +48,8 @@ Precipitation_2019 <-
   janitor::clean_names() %>%
   drop_na(total) %>%
   add_column(Year = "2019") %>%
-  mutate(month = month.name[month])
-Precipitation_2019
+  mutate(month = month.name[month]) %>% 
+  rename(total_precipitation = total) 
 ```
 ```{r}
 new_2018_2019 <-
@@ -64,8 +62,25 @@ Write a paragraph about these data; you are encouraged to use inline R. Be sure 
 
 
 ```{r}
-
+nrow(Mr_Trash_Wheel_Data)
+ncol(Mr_Trash_Wheel_Data)
+nrow(Precipitation_2018)
+ncol(Precipitation_2018)
+nrow(Precipitation_2019)
+ncol(Precipitation_2019)
+nrow(new_2018_2019)
+ncol(new_2018_2019)
+sum(pull(Precipitation_2018,total_precipitation))
+new_mr_trash_wheel <- filter(Mr_Trash_Wheel_Data, year == "2019")
+median(pull(new_mr_trash_wheel,sports_balls))
 ```
+For "Mr_Trash_Wheel_Data" dataset includes : 454 rows and  14 columns with 14 variables: dumpster, month, year, date, weight, volume, plastic_bottles, polystyrene, cigarette_butts, glass_bottles, grocery_bags, chip_bags, sports_balls and homes_powered.
+For "Precipitation_2018" dataset includes : 12 rows and 3 columns with 3 variables: month, total_precipitation, year.
+For "Precipitation_2019" dataset includes : 12 rows and 3 columns with 3 variables: month, total_precipitation, year.
+For "new_2018_2019" dataset includes : 24 rows and 3 columns with 3 variables: month, total_precipitation, year.
+The total precipitation in 2018 is  70.33.
+The median number of sports balls in a dumpster in 2019 is 9.
+
 
 
 Problem 2
@@ -86,7 +101,6 @@ pols_month_new <-
     prez_dem ==1 ~ "dem"))%>%
   select(-prez_dem, -prez_gop,-day)
   
-pols_month_new  
 ```
 
 
@@ -104,7 +118,6 @@ snp_new <-
   arrange(year,month)%>%
   mutate(month = month.name[as.numeric(month)])%>%
   relocate(year,month,day,close)
-snp_new  
   
   
 ```
@@ -113,16 +126,36 @@ snp_new
 Third, tidy the unemployment data so that it can be merged with the previous datasets. This process will involve switching from “wide” to “long” format; ensuring that key variables have the same name; and ensuring that key variables take the same values.
 ```{r}
 new_unemployment <-
-  read_csv("unemployment.csv")%>%
-  janitor::clean_names()%>%
+  read_csv("unemployment.csv") %>% 
+  janitor::clean_names() %>% 
+  pivot_longer(
+    jan:dec,
+    names_to = "month",
+    values_to = "unemployment") %>% 
+  mutate(month= str_to_title(month))
 ```
 
 
 Join the datasets by merging snp into pols, and merging unemployment into the result.
 
+```{r}
+snp_pols <-
+  left_join(pols_month_new,snp_new,by = c("year","month"))
+snp_pols_unemployment<-
+  left_join(snp_pols,new_unemployment, by = c("year","month"))
+```
+
+
 Write a short paragraph about these datasets. Explain briefly what each dataset contained, and describe the resulting dataset (e.g. give the dimension, range of years, and names of key variables).
 
-Note: we could have used a date variable as a key instead of creating year and month keys; doing so would help with some kinds of plotting, and be a more accurate representation of the data. Date formats are tricky, though. For more information check out the lubridate package in the tidyverse.
+For "pols_month_new", the dimension of data is `r dim(pols_month_new)`, the range of years is `r range(pull(pols_month_new, year))` and names of key variables are `r names(pols_month_new)`
+
+For "snp_new", the dimension of data is `r dim(snp_new)`, the range of years is `r range(pull(snp_new, year))` and names of key variables are `r names(snp_new)`
+
+For "new_unemployment", the dimension of data is `r dim(new_unemployment)`, the range of years is `r range(pull(new_unemployment, year))` and names of key variables are `r names(new_unemployment)`
+
+For "snp_pols_unemployment", the dimension of data is `r dim(snp_pols_unemployment)`, the range of years is `r range(pull(snp_pols_unemployment, year))` and names of key variables are `r names(snp_pols_unemployment)`
+
 
 
 
@@ -136,27 +169,27 @@ Load and tidy the data. Note that, although these data may seem fairly well form
 new_popularity <-
   read_csv("Popular_Baby_Names.csv")%>%
   janitor::clean_names()%>%
+  mutate(childs_first_name= str_to_upper(childs_first_name),
+         gender= str_to_upper(gender),
+         ethnicity = str_to_upper(ethnicity)) %>% 
   mutate(ethnicity = recode(ethnicity, 
                             "ASIAN AND PACI" = "ASIAN AND PACIFIC ISLANDER",
                             "BLACK NON HISP" = "BLACK NON HISPANIC", 
                             "WHITE NON HISP" = "WHITE NON HISPANIC")) %>% 
   distinct()
-new_popularity
   
 ```
 
 Produce a well-structured, reader-friendly table showing the rank in popularity of the name “Olivia” as a female baby name over time; this should have rows for ethnicities and columns for year. Produce a similar table showing the most popular name among male children over time.
 ```{r}
 rank_popularity <-
-  filter(new_popularity,childs_first_name == "Olivia", gender == "FEMALE") %>%
+  filter(new_popularity,childs_first_name == "OLIVIA", gender == "FEMALE") %>%
   select(year_of_birth,ethnicity,rank)
-rank_popularity  
 ```
 ```{r}
 popular_name_male <-
   filter(new_popularity,gender == "MALE", rank == "1") %>%
   select(-gender,-count,-rank)
-popular_name_male
 ```
 
 
@@ -169,7 +202,6 @@ new_plot <-
          count, rank)%>%
   filter(year_of_birth == "2016", gender == "MALE", 
          ethnicity == "WHITE NON HISPANIC")
-new_plot
-ggplot(new_plot, aes(x= rank, y=count))+geom_point()
+ggplot(new_plot, aes(x= rank,y=count))+geom_point(color="blue")
 ```
 
